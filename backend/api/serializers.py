@@ -4,9 +4,8 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
 from users.serializers import CustomUserSerializer
-
-from .models import (FavouriteRecipes, Follow, Ingredient, Recipe,
-                     RecipeIngredients, ShoppingList, Tag)
+from recipes.models import (FavouriteRecipes, Follow, Ingredient, Recipe,
+                            RecipeIngredients, ShoppingList, Tag)
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -74,34 +73,9 @@ class RecipesSerializer(serializers.ModelSerializer):
                   'cooking_time', 'image')
         read_only_fields = ('id', 'author', 'tags')
 
-    def validate(self, data):
-        ingredients = self.initial_data.get('ingredients')
-        ingredients_list = [ingredient['id'] for ingredient in ingredients]
-        if len(ingredients_list) != len(set(ingredients_list)):
-            raise serializers.ValidationError(
-                'какой-то ингредиент выбран больше одного раза'
-            )
-        return data
-
-    def to_representation(self, instance):
-        self.fields.pop('ingredients')
-        self.fields.pop('tags')
-        representation = super().to_representation(instance)
-        recipe = RecipeIngredients.objects.filter(recipe=instance)
-        representation['ingredients'] = IngredientRecipeGetSerializer(
-            recipe, many=True
-        ).data
-        representation['tags'] = TagSerializer(
-            instance.tags, many=True
-        ).data
-        return representation
-
-    def create(self, validated_data):
+    @staticmethod
+    def bulk_create_recipe(validated_data, recipe):
         ingredients_data = validated_data.pop('ingredients')
-        tags_data = validated_data.pop('tags')
-        recipe = Recipe.objects.create(**validated_data)
-        recipe.tags.set(tags_data)
-
         bulk_create_data = [
             RecipeIngredients(
                 recipe=recipe,
@@ -109,27 +83,56 @@ class RecipesSerializer(serializers.ModelSerializer):
                 amount=ingredient_data['amount'])
             for ingredient_data in ingredients_data
         ]
-        RecipeIngredients.objects.bulk_create(bulk_create_data)
+        return RecipeIngredients.objects.bulk_create(bulk_create_data)
+
+    def validate(self, data):
+        ingredients = self.initial_data.get('ingredients')
+        tags = self.initial_data.get('tags')
+        tags_list = [tag['id'] for tag in tags]
+        ingredients_list = [ingredient['id'] for ingredient in ingredients]
+        if not len(tags_list) > 0:
+            raise serializers.ValidationError(
+                'выберите хотя бы один тег'
+            )
+        if len(ingredients_list) == 0:
+            raise serializers.ValidationError(
+                'выберите хотя бы один ингредиент'
+            )
+        if not self.initial_data.get('cooking_time') > 0:
+            raise serializers.ValidationError(
+                'время готовки должно быть больше нуля'
+            )
+
+        for ingredient in ingredients:
+            if not ingredient['amount'] > 0:
+                raise serializers.ValidationError(
+                    'вес ингредиентов должен быть больше нуля'
+                )
+        if len(ingredients_list) != len(set(ingredients_list)):
+            raise serializers.ValidationError(
+                'какой-то ингредиент выбран больше одного раза'
+            )
+        return data
+
+    def create(self, validated_data):
+        tags_data = validated_data.pop('tags')
+        recipe = Recipe.objects.create(**validated_data)
+        recipe.tags.set(tags_data)
+
+        self.bulk_create_recipe(validated_data, recipe)
         return recipe
 
     def update(self, instance, validated_data):
+        recipe = instance
         if 'tags' in self.validated_data:
             tags_data = validated_data.pop('tags')
             instance.tags.set(tags_data)
         if 'ingredients' in self.validated_data:
-            ingredients_data = validated_data.pop('ingredients')
             with transaction.atomic():
                 amount_set = RecipeIngredients.objects.filter(
                     recipe__id=instance.id)
                 amount_set.delete()
-                bulk_create_data = (
-                    RecipeIngredients(
-                        recipe=instance,
-                        ingredient=ingredient_data['ingredient'],
-                        amount=ingredient_data['amount'])
-                    for ingredient_data in ingredients_data
-                )
-                RecipeIngredients.objects.bulk_create(bulk_create_data)
+                self.bulk_create_recipe(validated_data, recipe)
         return super().update(instance, validated_data)
 
 
@@ -176,12 +179,10 @@ class RecipeGetSerializer(serializers.ModelSerializer):
         ).exists()
 
     def get_ingredients(self, obj):
-        recipe = (
-            RecipeIngredients.objects
-            .filter(recipe=obj)
-            .values_list('ingredients')
-        )
-        return recipe
+        recipe_ingredients = RecipeIngredients.objects.filter(recipe=obj)
+        return IngredientRecipeGetSerializer(
+            recipe_ingredients, many=True
+        ).data
 
 
 class RecipeFollowSerializer(serializers.ModelSerializer):
@@ -206,6 +207,12 @@ class FollowSerializer(serializers.ModelSerializer):
         model = Follow
         fields = ('id', 'email', 'username', 'first_name', 'last_name',
                   'is_subscribed', 'recipes', 'recipes_count')
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Follow.objects.all(),
+                fields=['following', 'user']
+            )
+        ]
 
     def get_is_subscribed(self, obj):
         return Follow.objects.filter(
@@ -219,10 +226,6 @@ class FollowSerializer(serializers.ModelSerializer):
     def validate(self, data):
         author_id = self.context.get('id')
         user_id = self.context.get('request').user.id
-        if user_id == author_id:
-            raise serializers.ValidationError(
-                'Нельзя подписаться на самого себя'
-            )
         if Follow.objects.filter(
                 user=user_id,
                 following=author_id

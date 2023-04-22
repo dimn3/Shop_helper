@@ -5,14 +5,13 @@ from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.decorators import permission_classes as perm_classes
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .filters import IngredientFilter, RecipeFilter
-from .models import (FavouriteRecipes, Follow, Ingredient, Recipe,
-                     RecipeIngredients, ShoppingList, Tag)
+from recipes.models import (FavouriteRecipes, Follow, Ingredient, Recipe,
+                            RecipeIngredients, ShoppingList, Tag)
 from .paginators import PageLimitPagination
 from .permissions import IsAdmin, IsAuthorOrReadOnly
 from .serializers import (FollowSerializer, IngredientSerializer,
@@ -23,27 +22,29 @@ from .utils import delete_obj, post_obj
 User = get_user_model()
 
 
-class TagsViewSet(
+class BaseViewSet(
     viewsets.GenericViewSet,
     mixins.ListModelMixin,
-    mixins.RetrieveModelMixin
 ):
     permission_classes = (AllowAny,)
-    serializer_class = TagSerializer
+    pagination_class = None
 
+
+class TagsViewSet(
+    BaseViewSet,
+    mixins.RetrieveModelMixin
+):
+    serializer_class = TagSerializer
     queryset = Tag.objects.all()
 
 
 class IngredientsViewSet(
-    viewsets.GenericViewSet,
-    mixins.ListModelMixin,
+    BaseViewSet,
     mixins.RetrieveModelMixin
 ):
-    permission_classes = (AllowAny,)
     serializer_class = IngredientSerializer
     filter_backends = (filters.SearchFilter,)
     filterset_class = IngredientFilter
-    pagination_class = None
 
     queryset = Ingredient.objects.all()
 
@@ -61,42 +62,11 @@ class RecipesViewSet(viewsets.ModelViewSet):
             return RecipeGetSerializer
         return RecipesSerializer
 
-    def get_queryset(self):
-        is_favorited = self.request.query_params.get('is_favorited') or 0
-        if int(is_favorited) == 1:
-            return Recipe.objects.filter(
-                favourites__user=self.request.user
-            )
-        is_in_shopping_cart = self.request.query_params.get(
-            'is_in_shopping_cart') or 0
-        if int(is_in_shopping_cart) == 1:
-            return Recipe.objects.filter(
-                cart__user=self.request.user
-            )
-        return Recipe.objects.all()
-
-    @perm_classes(IsAdmin | IsAuthorOrReadOnly,)
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        if self.user == instance.author:
-            self.perform_destroy(instance)
-            return Response('Рецепт успешно удален',
-                            status=status.HTTP_204_NO_CONTENT)
-        return Response('')
-
-    @action(
-            detail=False, methods=['post'],
-            permission_classes=[IsAuthorOrReadOnly]
-        )
-    def perform_update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.serializer_class(
-            instance, data=request.data, partial=True
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, 'Рецепт успешно обновлен',
-                        status=status.HTTP_200_OK)
+        self.perform_destroy(instance)
+        return Response('Рецепт успешно удален',
+                        status=status.HTTP_204_NO_CONTENT)
 
     @action(
             detail=False, methods=['post'],

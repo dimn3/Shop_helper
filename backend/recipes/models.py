@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.core.validators import MinValueValidator
 from users.models import User
 
 
@@ -43,11 +43,11 @@ class Recipe(models.Model):
     )
     ingredients = models.ManyToManyField(
         Ingredient,
-        through="RecipeIngredients",
+        through='RecipeIngredients',
     )
     tag = models.ManyToManyField(
         Tag,
-        through="RecipeTags",
+        through='RecipeTags',
     )
     pub_date = models.DateTimeField(
         'Дата публикации',
@@ -77,7 +77,8 @@ class RecipeIngredients(models.Model):
     ingredients = models.ForeignKey(Ingredient, on_delete=models.CASCADE,)
     amount = models.PositiveSmallIntegerField(
         verbose_name='Количество ингредиентов',
-        default=1
+        default=1,
+        validators=[MinValueValidator(1)]
     )
 
     class Meta:
@@ -102,7 +103,6 @@ class ShoppingList(models.Model):
         on_delete=models.CASCADE,
         related_name='cart',
         verbose_name='Список покупок',
-        null=False
     )
     user = models.ForeignKey(
         User,
