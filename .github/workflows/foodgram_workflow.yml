@@ -32,6 +32,7 @@ jobs:
         host: ${{ secrets.VM_HOST }}
         username: ${{ secrets.VM_USER }}
         key: ${{ secrets.VM_SSH_KEY }}
+        passphrase: ${{ secrets.PASSPHRASE }}
         script: |
             cd foodgram-project-react/
             git pull
