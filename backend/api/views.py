@@ -8,15 +8,14 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-
-from .filters import IngredientFilter, RecipeFilter
 from recipes.models import (FavouriteRecipes, Follow, Ingredient, Recipe,
-                            RecipeIngredients, ShoppingList, Tag)
+                            IngredientsInRecipe, ShoppingCart, Tag)
 from .paginators import PageLimitPagination
 from .permissions import IsAdmin, IsAuthorOrReadOnly
 from .serializers import (FollowSerializer, IngredientSerializer,
                           RecipeFollowSerializer, RecipeGetSerializer,
-                          RecipesSerializer, TagSerializer)
+                          RecipesSerializer, TagSerializer,
+                          RecipeCreateSerializer)
 from .utils import delete_obj, post_obj
 
 User = get_user_model()
@@ -42,25 +41,23 @@ class IngredientsViewSet(
     BaseViewSet,
     mixins.RetrieveModelMixin
 ):
+    queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     filter_backends = (filters.SearchFilter,)
-    filterset_class = IngredientFilter
-
-    queryset = Ingredient.objects.all()
+    search_fields = ('^name',)
 
 
 class RecipesViewSet(viewsets.ModelViewSet):
     serializer_class = RecipesSerializer
     pagination_class = PageLimitPagination
     filter_backends = (DjangoFilterBackend,)
-    filterset_class = RecipeFilter
     permission_classes = (IsAdmin | IsAuthorOrReadOnly,)
     queryset = Recipe.objects.all()
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
             return RecipeGetSerializer
-        return RecipesSerializer
+        return RecipeCreateSerializer
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -76,6 +73,15 @@ class RecipesViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
         return Response('Рецепт успешно создан',
                         status=status.HTTP_201_CREATED)
+
+    @action(
+            detail=False, methods=['post'],
+            permission_classes=[IsAuthenticated]
+        )
+    def perform_update(self, serializer):
+        author = self.request.user
+        id = self.kwargs.get('pk')
+        serializer.save(author=author, id=id)
 
     @action(
             detail=True, methods=('POST', 'DELETE'),
@@ -94,26 +100,26 @@ class RecipesViewSet(viewsets.ModelViewSet):
         )
     def shopping_cart(self, request, pk):
         if request.method == 'POST':
-            return post_obj(request, pk, ShoppingList, RecipeFollowSerializer)
-        return delete_obj(request, pk, ShoppingList)
+            return post_obj(request, pk, ShoppingCart, RecipeFollowSerializer)
+        return delete_obj(request, pk, ShoppingCart)
 
     @action(
             detail=False, methods=('GET',),
             permission_classes=[IsAuthenticated]
         )
     def download_shopping_cart(self, request):
-        if not request.user.cart.exists():
+        if not ShoppingCart.objects.filter(user=self.request.user).exists():
             return Response(
                 'В корзине нет товаров', status=status.HTTP_400_BAD_REQUEST)
         ingredients = (
-            RecipeIngredients.objects
+            IngredientsInRecipe.objects
             .filter(recipe__cart__user=request.user)
-            .values('ingredients')
+            .values('ingredient')
             .annotate(total_amount=Sum('amount'))
             .values_list(
-                'ingredients__name',
+                'ingredient__name',
                 'total_amount',
-                'ingredients__measurement_unit'
+                'ingredient__measurement_unit'
             )
         )
 

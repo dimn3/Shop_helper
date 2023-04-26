@@ -12,9 +12,8 @@ class Tag(models.Model):
         return str(self.name)
 
     class Meta:
-        default_related_name = 'tags'
-        verbose_name = 'Тэг'
-        verbose_name_plural = 'Тэги'
+        verbose_name = 'Тег'
+        verbose_name_plural = 'Теги'
 
 
 class Ingredient(models.Model):
@@ -22,11 +21,10 @@ class Ingredient(models.Model):
     measurement_unit = models.CharField(
         'Ед. измерения',
         default='Грамм',
-        max_length=20
+        max_length=200
     )
 
     class Meta:
-        default_related_name = 'ingredients'
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Индгредиенты'
 
@@ -39,25 +37,17 @@ class Recipe(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='recipes',
-        verbose_name='author'
+        verbose_name='Автор рецепта'
     )
-    ingredients = models.ManyToManyField(
-        Ingredient,
-        through='RecipeIngredients',
-    )
-    tag = models.ManyToManyField(
+    tags = models.ManyToManyField(
         Tag,
-        through='RecipeTags',
-    )
-    pub_date = models.DateTimeField(
-        'Дата публикации',
-        auto_now_add=True
+        through='TagsInRecipe',
+        related_name='recipes'
     )
     name = models.CharField(max_length=50)
     image = models.ImageField(
         'Картинка',
-        upload_to='foodgram/images',
-        blank=True
+        blank=True,
     )
     text = models.CharField('Текст', max_length=500)
     cooking_time = models.PositiveIntegerField('Время приготовления')
@@ -69,12 +59,20 @@ class Recipe(models.Model):
         verbose_name_plural = 'Рецепты'
 
     def __str__(self) -> str:
-        return str(self.text[:30])
+        return self.name[:30]
 
 
-class RecipeIngredients(models.Model):
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE,)
-    ingredients = models.ForeignKey(Ingredient, on_delete=models.CASCADE,)
+class IngredientsInRecipe(models.Model):
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='ingredients_in_recipe'
+    )
+    ingredient = models.ForeignKey(
+        Ingredient,
+        on_delete=models.CASCADE,
+        related_name='ingredients_in_recipe'
+    )
     amount = models.PositiveSmallIntegerField(
         verbose_name='Количество ингредиентов',
         default=1,
@@ -86,40 +84,54 @@ class RecipeIngredients(models.Model):
         verbose_name = 'Ингредиент рецепта'
         verbose_name_plural = 'Ингредиенты рецепта'
 
+    def __str__(self):
+        return self.ingredients.name
 
-class RecipeTags(models.Model):
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
-    tags = models.ForeignKey(Tag, on_delete=models.CASCADE)
+
+class TagsInRecipe(models.Model):
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='tags_in_recipe'
+    )
+    tags = models.ForeignKey(
+        Tag,
+        on_delete=models.CASCADE,
+        related_name='tags_in_recipe'
+    )
 
     class Meta:
         default_related_name = 'recipetags'
         verbose_name = 'Тэг рецепта'
         verbose_name_plural = 'Тэги рецепта'
 
+    def __str__(self) -> str:
+        return f'TR: {self.tags.name}->{self.recipe.name}'[:30]
 
-class ShoppingList(models.Model):
+
+class ShoppingCart(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         related_name='cart',
-        verbose_name='Список покупок',
+        verbose_name='carts',
     )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='cart',
-        verbose_name='Автор списка покупок'
+        verbose_name='carts'
     )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=('recipe', 'user',),
-                name='recipe_user_shoppinglist_unique'
+                name='recipe_user_shoppingcart_unique'
             )
         ]
         ordering = ['-id']
-        default_related_name = 'shopping_list'
+        default_related_name = 'shopping_cart'
         verbose_name = 'Список покупок'
         verbose_name_plural = 'Списки покупок'
 

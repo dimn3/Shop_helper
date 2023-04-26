@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import (FavouriteRecipes, Follow, Ingredient, Recipe,
-                     RecipeIngredients, RecipeTags, ShoppingList, Tag)
+                     IngredientsInRecipe, TagsInRecipe, ShoppingCart, Tag)
 
 
 @admin.register(Tag)
@@ -16,12 +16,12 @@ class IngredientAdmin(admin.ModelAdmin):
 
 
 class RecipeTagsInLine(admin.TabularInline):
-    model = Recipe.tag.through
+    model = TagsInRecipe
     extra = 1
 
 
 class RecipeIngredientsInLine(admin.TabularInline):
-    model = Recipe.ingredients.through
+    model = IngredientsInRecipe
     extra = 1
 
 
@@ -30,24 +30,23 @@ class RecipeAdmin(admin.ModelAdmin):
     list_display = ('id',
                     'name',
                     'author',
-                    'pub_date',
                     'text',
                     'cooking_time',
                     'image',)
-    list_filter = ('name', 'author__username', 'pub_date',)
+    list_filter = ('name', 'author__username',)
     search_fields = ('name',)
     inlines = (RecipeTagsInLine, RecipeIngredientsInLine)
 
 
-@admin.register(RecipeIngredients)
-class RecipeIngredientsAdmin(admin.ModelAdmin):
-    list_display = ('recipe', 'ingredients',)
+@admin.register(IngredientsInRecipe)
+class IngredientsInRecipeAdmin(admin.ModelAdmin):
+    list_display = ('recipe', 'ingredient',)
     list_filter = ('recipe',)
     search_fields = ('recipe',)
 
 
-@admin.register(RecipeTags)
-class RecipeTagsAdmin(admin.ModelAdmin):
+@admin.register(TagsInRecipe)
+class TagsInRecipeAdmin(admin.ModelAdmin):
     list_display = ('recipe', 'tags',)
     list_filter = ('recipe',)
     search_fields = ('recipe',)
@@ -67,8 +66,8 @@ class FollowAdmin(admin.ModelAdmin):
     search_fields = ('user',)
 
 
-@admin.register(ShoppingList)
-class ShoppingListAdmin(admin.ModelAdmin):
+@admin.register(ShoppingCart)
+class ShoppingCartAdmin(admin.ModelAdmin):
     list_display = ('recipe', 'user',)
     list_filter = ('user',)
     search_fields = ('user',)
