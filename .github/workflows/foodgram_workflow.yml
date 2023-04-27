@@ -37,7 +37,7 @@ jobs:
             cd foodgram-project-react/
             git pull
             cd infra/ 
-            echo SECRET_KEY=${{ secrets.SECRET_KEY }} > .env
+            echo SECRET_KEY=${{ secrets.SECRET_KEY }} >> .env
             echo DB_ENGINE=${{ secrets.DB_ENGINE }} >> .env
             echo DB_NAME=${{ secrets.DB_NAME }} >> .env
             echo DB_USER=${{ secrets.DB_USER }} >> .env
