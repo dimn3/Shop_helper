@@ -59,11 +59,13 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
         source='ingredients_in_recipe'
     )
     image = Base64ImageField()
+    author = CustomUserSerializer(read_only=True)
 
     class Meta:
         model = Recipe
         fields = (
             'id',
+            'author',
             'ingredients',
             'tags',
             'image',
@@ -172,14 +174,10 @@ class RecipesSerializer(serializers.ModelSerializer):
 class RecipeGetSerializer(serializers.ModelSerializer):
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
-    author = serializers.SlugRelatedField(
-        read_only=True,
-        slug_field="username",
-        default=serializers.CurrentUserDefault(),
-    )
+    author = CustomUserSerializer(read_only=True)
     image = Base64ImageField()
     ingredients = serializers.SerializerMethodField()
-
+    tags = TagSerializer(many=True, read_only=True)
     class Meta:
         model = Recipe
         fields = (
@@ -240,12 +238,6 @@ class FollowSerializer(serializers.ModelSerializer):
         model = Follow
         fields = ('id', 'email', 'username', 'first_name', 'last_name',
                   'is_subscribed', 'recipes', 'recipes_count')
-        validators = [
-            UniqueTogetherValidator(
-                queryset=Follow.objects.all(),
-                fields=['following', 'user']
-            )
-        ]
 
     def get_is_subscribed(self, obj):
         return Follow.objects.filter(

@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from recipes.models import (FavouriteRecipes, Follow, Ingredient, Recipe,
                             IngredientsInRecipe, ShoppingCart, Tag)
 from .paginators import PageLimitPagination
+from .filters import IngredientFilter, RecipeFilter
 from .permissions import IsAdmin, IsAuthorOrReadOnly
 from .serializers import (FollowSerializer, IngredientSerializer,
                           RecipeFollowSerializer, RecipeGetSerializer,
@@ -44,6 +45,7 @@ class IngredientsViewSet(
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     filter_backends = (filters.SearchFilter,)
+    filterset_class = IngredientFilter
     search_fields = ('^name',)
 
 
@@ -51,6 +53,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
     serializer_class = RecipesSerializer
     pagination_class = PageLimitPagination
     filter_backends = (DjangoFilterBackend,)
+    filterset_class = RecipeFilter
     permission_classes = (IsAdmin | IsAuthorOrReadOnly,)
     queryset = Recipe.objects.all()
 
@@ -58,6 +61,20 @@ class RecipesViewSet(viewsets.ModelViewSet):
         if self.request.method == 'GET':
             return RecipeGetSerializer
         return RecipeCreateSerializer
+
+    def get_queryset(self):
+        is_favorited = self.request.query_params.get('is_favorited') or 0
+        if int(is_favorited) == 1:
+            return Recipe.objects.filter(
+                favourites__user=self.request.user
+            )
+        is_in_shopping_cart = self.request.query_params.get(
+            'is_in_shopping_cart') or 0
+        if int(is_in_shopping_cart) == 1:
+            return Recipe.objects.filter(
+                cart__user=self.request.user
+            )
+        return Recipe.objects.all()
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
