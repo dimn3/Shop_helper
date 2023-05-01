@@ -15,8 +15,7 @@ from .filters import IngredientFilter, RecipeFilter
 from .permissions import IsAdmin, IsAuthorOrReadOnly
 from .serializers import (FollowSerializer, IngredientSerializer,
                           RecipeFollowSerializer, RecipeGetSerializer,
-                          RecipesSerializer, TagSerializer,
-                          RecipeCreateSerializer)
+                          TagSerializer, RecipeCreateSerializer)
 from .utils import delete_obj, post_obj
 
 User = get_user_model()
@@ -50,7 +49,6 @@ class IngredientsViewSet(
 
 
 class RecipesViewSet(viewsets.ModelViewSet):
-    serializer_class = RecipesSerializer
     pagination_class = PageLimitPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
@@ -90,15 +88,6 @@ class RecipesViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
         return Response('Рецепт успешно создан',
                         status=status.HTTP_201_CREATED)
-
-    @action(
-            detail=False, methods=['post'],
-            permission_classes=[IsAuthenticated]
-        )
-    def perform_update(self, serializer):
-        author = self.request.user
-        id = self.kwargs.get('pk')
-        serializer.save(author=author, id=id)
 
     @action(
             detail=True, methods=('POST', 'DELETE'),
