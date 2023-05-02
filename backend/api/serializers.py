@@ -1,7 +1,6 @@
 from django.db import transaction
 from drf_extra_fields.fields import Base64ImageField
-from rest_framework import serializers
-from rest_framework.validators import UniqueTogetherValidator
+from rest_framework import serializers, status
 
 from users.serializers import CustomUserSerializer
 from recipes.models import (FavouriteRecipes, Follow, Ingredient, Recipe,
@@ -58,7 +57,7 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
     ingredients = IngredientsListingSerializer(
         many=True,
         source='ingredients_in_recipe'
-   )
+    )
     image = Base64ImageField()
     author = CustomUserSerializer(read_only=True)
 
@@ -77,7 +76,6 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         ingredients = self.initial_data.get('ingredients')
-        coocking_time = self.initial_data.get('cooking_time')
         tags = self.initial_data.get('tags')
         tags_sum = 0
         for tag in tags:
@@ -91,21 +89,25 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 'выберите хотя бы один ингредиент'
             )
-        if coocking_time == '0':
-            raise serializers.ValidationError(
-                'время готовки должно быть больше нуля'
-            )
-
-        for ingredient in ingredients:
-            if int(ingredient['amount']) <= 0:
-                raise serializers.ValidationError(
-                    'вес ингредиентов должен быть больше нуля'
-                )
         if len(ingredients_list) != len(set(ingredients_list)):
             raise serializers.ValidationError(
                 'какой-то ингредиент выбран больше одного раза'
             )
         return data
+
+    def validate_cooking_time(self, value):
+        if value <= 0 :
+            raise serializers.ValidationError(
+                'время готовки должно быть больше нуля'
+            )
+        return value
+
+    def validate_ingredients(self, value):
+        if value['amount'] <= 0:
+            raise serializers.ValidationError(
+                'вес ингредиентов должен быть больше нуля'
+            )
+        return value
 
     def to_representation(self, instance):
         self.fields.pop('ingredients')
@@ -155,6 +157,7 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
                 IngredientsInRecipe.objects.bulk_create(bulk_create_data)
         return super().update(instance, validated_data)
 
+
 class RecipeGetSerializer(serializers.ModelSerializer):
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
@@ -162,6 +165,7 @@ class RecipeGetSerializer(serializers.ModelSerializer):
     image = Base64ImageField()
     ingredients = serializers.SerializerMethodField()
     tags = TagSerializer(many=True, read_only=True)
+
     class Meta:
         model = Recipe
         fields = (

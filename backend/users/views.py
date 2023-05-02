@@ -75,8 +75,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 serializer.validated_data['current_password'],
                 current_user.password
         ):
-            message = "Current Password is incorrect"
-            return Response(message, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(['Неверный пароль'], status=status.HTTP_401_UNAUTHORIZED)
 
         current_user.set_password(serializer.validated_data['new_password'])
         current_user.save()
@@ -115,17 +114,15 @@ class UserLoginViewSet(
         email = serializer.validated_data.get('email')
 
         if not User.objects.filter(email=email).exists():
-            message = "This email has already been taken"
             return Response(
-                data=message,
+                ['Проверьте корректность введённого email'],
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         user = get_object_or_404(User, email=email)
         if not check_password(password, user.password):
-            message = "password is incorrect"
             return Response(
-                data=message,
+                ['Неверный пароль'],
                 status=status.HTTP_400_BAD_REQUEST
             )
 

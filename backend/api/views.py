@@ -77,7 +77,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
-        return Response('Рецепт успешно удален',
+        return Response(['Рецепт успешно удален'],
                         status=status.HTTP_204_NO_CONTENT)
 
     @action(
@@ -86,7 +86,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
         )
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
-        return Response('Рецепт успешно создан',
+        return Response(['Рецепт успешно создан'],
                         status=status.HTTP_201_CREATED)
 
     @action(
@@ -116,7 +116,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
     def download_shopping_cart(self, request):
         if not ShoppingCart.objects.filter(user=self.request.user).exists():
             return Response(
-                'В корзине нет товаров', status=status.HTTP_400_BAD_REQUEST)
+                ['В корзине нет товаров'], status=status.HTTP_400_BAD_REQUEST)
         ingredients = (
             IngredientsInRecipe.objects
             .filter(recipe__cart__user=request.user)
