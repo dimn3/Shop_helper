@@ -42,7 +42,7 @@ class IngredientsListingSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(
         queryset=Ingredient.objects.all()
     )
-    amount = serializers.IntegerField(min_value=1, max_value=1000)
+    amount = serializers.IntegerField(min_value=1)
 
     class Meta:
         model = IngredientsInRecipe
@@ -60,6 +60,7 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
     )
     image = Base64ImageField()
     author = CustomUserSerializer(read_only=True)
+    cooking_time = serializers.IntegerField(min_value=1)
 
     class Meta:
         model = Recipe
@@ -94,20 +95,6 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
                 'какой-то ингредиент выбран больше одного раза'
             )
         return data
-
-    def validate_cooking_time(self, value):
-        if value <= 0 :
-            raise serializers.ValidationError(
-                'время готовки должно быть больше нуля'
-            )
-        return value
-
-    def validate_ingredients(self, value):
-        if value['amount'] <= 0:
-            raise serializers.ValidationError(
-                'вес ингредиентов должен быть больше нуля'
-            )
-        return value
 
     def to_representation(self, instance):
         self.fields.pop('ingredients')

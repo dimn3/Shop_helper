@@ -73,10 +73,10 @@ class IngredientsInRecipe(models.Model):
         on_delete=models.CASCADE,
         related_name='ingredients_in_recipe'
     )
-    amount = models.PositiveSmallIntegerField(
+    amount = models.IntegerField(
         verbose_name='Количество ингредиентов',
         default=1,
-        validators=[MinValueValidator(1)]
+        validators=[MinValueValidator(1, message=('Масса ингредиентов должна быть больше нуля'))]
     )
 
     class Meta:
