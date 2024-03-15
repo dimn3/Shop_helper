@@ -1,8 +1,5 @@
 ShopHelper
 
-![workflows](https://github.com/dimn3/foodgram-project-react/actions/workflows/foodgram_workflow.yml/badge.svg)
-![workflows](https://github.com/dimn3/foodgram-project-react/actions/workflows/flake8_workflow.yml/badge.svg)
-
 ShopHelper - это сайт, на котором пользователи могут публиковать рецепты, добавлять чужие рецепты в избранное и подписываться на публикации других авторов. Сервис «Список покупок» позволит пользователям создавать список продуктов, которые нужно купить для приготовления выбранных блюд.
 
 Сайт должен быть доступен по: http://130.193.50.14/
